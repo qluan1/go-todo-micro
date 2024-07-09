@@ -13,12 +13,12 @@ import (
 )
 
 func main() {
-	logger := log.New(os.Stdout, "hello-api ", log.LstdFlags)
+	logger := log.New(os.Stdout, "go-todo-micro", log.LstdFlags)
 	
-	helloHandler := handlers.NewHello(logger)
+	todoHandler := handlers.NewTodos(logger)
 
 	sm := http.NewServeMux()
-	sm.Handle("/hello", helloHandler)
+	sm.Handle("/todos", todoHandler)
 
 	server := &http.Server{
 		Addr:    ":8080",
