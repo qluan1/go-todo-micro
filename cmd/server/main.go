@@ -19,6 +19,7 @@ func main() {
 
 	sm := http.NewServeMux()
 	sm.Handle("/todos", todoHandler)
+	sm.Handle("/todos/", todoHandler)
 
 	server := &http.Server{
 		Addr:    ":8080",
