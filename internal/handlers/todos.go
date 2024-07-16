@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/qluan1/go-todo-micro/internal/todos"
 )
 
@@ -16,24 +18,7 @@ func NewTodos(logger *log.Logger) *Todos {
 	return &Todos{logger}
 }
 
-func (t *Todos) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	// TODO implement url check for /todos/:id and /todos
-	if r.Method == http.MethodGet {
-		t.get(rw, r)
-		return
-	}
-	if r.Method == http.MethodPost {
-		t.post(rw, r)
-		return
-	}
-	if r.Method == http.MethodPut {
-		t.put(rw, r)
-		return
-	}
-	http.Error(rw, "Method not allowed", http.StatusMethodNotAllowed)
-}
-
-func (t *Todos) get(rw http.ResponseWriter, _ *http.Request) {
+func (t *Todos) GetTodos(rw http.ResponseWriter, _ *http.Request) {
 	t.logger.Println("GET /todos")
 
 	tds := todos.GetTodos()
@@ -45,44 +30,31 @@ func (t *Todos) get(rw http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func (t *Todos) post(rw http.ResponseWriter, r *http.Request) {
+func (t *Todos) PostTodos(rw http.ResponseWriter, r *http.Request) {
 	t.logger.Println("POST /todos")
 
-	todo := &todos.Todo{}
-
-	err := todo.FromJSON(r.Body)
-	if err != nil {
-		http.Error(rw, "Fail to unmarshal todo", http.StatusBadRequest)
-	}
+	todo := r.Context().Value(TodoKey{}).(*todos.Todo)
 	
 	todos.AddTodo(todo)
-	err = todo.ToJSON(rw) // return the todo with the ID
+	err := todo.ToJSON(rw) // return the todo with the ID
 	if err != nil {
 		http.Error(rw, "Error reading todo", http.StatusBadRequest)
 		t.logger.Println("Error reading todo", err)
 	}
+	t.logger.Println("Todo added")
 }
 
-func (t *Todos) put(rw http.ResponseWriter, r *http.Request) {
-	t.logger.Println("PUT /todos/:id")
+func (t *Todos) PutTodo(rw http.ResponseWriter, r *http.Request) {
+	s := mux.Vars(r)["id"]
+	t.logger.Printf("PUT /todos/%s\n", s)
 
-	// get the id from the URL
-	s := r.URL.Path[len("/todos/"):]
 	id, err := strconv.Atoi(s)
-
 	if err != nil {
 		http.Error(rw, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
-	// get the todo from the body
-	todo := &todos.Todo{}
-	err = todo.FromJSON(r.Body)
-	
-	if err != nil {
-		http.Error(rw, "Fail to unmarshal todo", http.StatusBadRequest)
-		return
-	}
+	todo := r.Context().Value(TodoKey{}).(*todos.Todo)
 
 	// update the todo with id
 	todo, err = todos.UpdateTodoByID(id, todo)
@@ -102,4 +74,25 @@ func (t *Todos) put(rw http.ResponseWriter, r *http.Request) {
 		t.logger.Println("Error reading todo", err)
 	}
 	t.logger.Printf("Todo %d updated", id)
+}
+
+type TodoKey struct{}
+
+func (t *Todos) MiddlewareValidateTodo(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		// validate the todo
+		todo := &todos.Todo{}
+
+		err := todo.FromJSON(r.Body)
+		if err != nil {
+			t.logger.Println("[Error] deserializing todo", err)
+			http.Error(rw, "Fail to unmarshal todo", http.StatusBadRequest)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), TodoKey{}, todo)
+		r = r.WithContext(ctx)
+
+		next.ServeHTTP(rw, r)
+	})
 }

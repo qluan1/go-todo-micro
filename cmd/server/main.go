@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/qluan1/go-todo-micro/internal/handlers"
 )
 
@@ -17,9 +18,18 @@ func main() {
 	
 	todoHandler := handlers.NewTodos(logger)
 
-	sm := http.NewServeMux()
-	sm.Handle("/todos", todoHandler)
-	sm.Handle("/todos/", todoHandler)
+	sm := mux.NewRouter()
+	
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/todos", todoHandler.GetTodos)
+
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/todos", todoHandler.PostTodos)
+	postRouter.Use(todoHandler.MiddlewareValidateTodo)
+
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/todos/{id:[0-9]+}", todoHandler.PutTodo)
+	postRouter.Use(todoHandler.MiddlewareValidateTodo)
 
 	server := &http.Server{
 		Addr:    ":8080",
