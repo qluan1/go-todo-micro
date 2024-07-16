@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	logger := log.New(os.Stdout, "go-todo-micro", log.LstdFlags)
+	logger := log.New(os.Stdout, "go-todo-micro ", log.LstdFlags)
 	
 	todoHandler := handlers.NewTodos(logger)
 
@@ -29,7 +29,7 @@ func main() {
 
 	putRouter := sm.Methods(http.MethodPut).Subrouter()
 	putRouter.HandleFunc("/todos/{id:[0-9]+}", todoHandler.PutTodo)
-	postRouter.Use(todoHandler.MiddlewareValidateTodo)
+	putRouter.Use(todoHandler.MiddlewareValidateTodo)
 
 	server := &http.Server{
 		Addr:    ":8080",
