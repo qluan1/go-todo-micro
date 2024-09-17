@@ -89,6 +89,14 @@ func (t *Todos) MiddlewareValidateTodo(next http.Handler) http.Handler {
 			http.Error(rw, "Fail to unmarshal todo", http.StatusBadRequest)
 			return
 		}
+
+		err = todo.Validate()
+		if err != nil {
+			t.logger.Println("[Error] validating todo", err)
+			http.Error(rw, "Invalid todo", http.StatusBadRequest)
+			return
+		}
+
 		ctx := context.WithValue(r.Context(), TodoKey{}, todo)
 		r = r.WithContext(ctx)
 

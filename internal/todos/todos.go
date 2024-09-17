@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/go-playground/validator"
 )
 
 type Todo struct {
 	ID int `json:"id"`
-	Title string `json:"title"`
+	Title string `json:"title" validate:"required"`
+	Description string `json:"description"`
 	Completed bool `json:"completed"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
@@ -31,6 +34,11 @@ func (t *Todo) ToJSON(w io.Writer) error {
 func (t *Todo) FromJSON(r io.Reader) error {
 	e := json.NewDecoder(r)
 	return e.Decode(t)
+}
+
+func (t *Todo) Validate() error {
+	validate := validator.New()
+	return validate.Struct(t)
 }
 
 func getNextID() int {
